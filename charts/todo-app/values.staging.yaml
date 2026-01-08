@@ -1,0 +1,101 @@
+# Staging Environment Values
+# Override default values for staging deployment
+
+environment: staging
+
+# Use staging domain
+domain: staging-todo.yourdomain.com
+adminEmail: admin@yourdomain.com
+
+# Lower replica counts for staging
+apiService:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+recurringTaskService:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+
+notificationService:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+
+auditService:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+
+websocketSyncService:
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+
+# Use in-cluster PostgreSQL for staging
+postgresql:
+  enabled: true
+  auth:
+    password: "staging-password-change-me"
+  primary:
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+externalDatabase:
+  enabled: false
+
+# Use in-cluster Kafka for staging
+kafka:
+  enabled: true
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Disable monitoring in staging to save costs
+monitoring:
+  enabled: false
+
+# Minimal security for staging
+networkPolicies:
+  enabled: false
+
+podSecurityPolicy:
+  enabled: false
+
+# Staging ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"

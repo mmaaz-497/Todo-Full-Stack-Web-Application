@@ -1,0 +1,94 @@
+# Dapr Pub/Sub Component for Cloud Kafka (Redpanda Cloud)
+# Uses SASL/SCRAM authentication with SSL encryption
+# Credentials stored in Kubernetes Secrets
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: todo-app-prod
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    # Kafka broker addresses (Redpanda Cloud endpoints)
+    # Example: seed-abc123.redpanda.cloud:9092
+    - name: brokers
+      secretKeyRef:
+        name: kafka-secrets
+        key: KAFKA_BROKERS
+
+    # Consumer group configuration
+    - name: consumerGroup
+      value: "dapr-consumer-group-prod"
+
+    # Client ID for producer identification
+    - name: clientID
+      value: "dapr-kafka-client-prod"
+
+    # Enable SASL authentication
+    - name: authRequired
+      value: "true"
+
+    # SASL mechanism (SCRAM-SHA-256 or SCRAM-SHA-512 for Redpanda)
+    - name: saslMechanism
+      value: "SCRAM-SHA-256"
+
+    # SASL username
+    - name: saslUsername
+      secretKeyRef:
+        name: kafka-secrets
+        key: KAFKA_USERNAME
+
+    # SASL password
+    - name: saslPassword
+      secretKeyRef:
+        name: kafka-secrets
+        key: KAFKA_PASSWORD
+
+    # Enable SSL/TLS
+    - name: sslEnabled
+      value: "true"
+
+    # Skip SSL verification (set to true for self-signed certs)
+    - name: skipVerify
+      value: "false"
+
+    # Consumer configuration
+    - name: consumerFetchMin
+      value: "1"
+
+    - name: consumerFetchDefault
+      value: "1024"
+
+    # Initial offset
+    - name: initialOffset
+      value: "oldest"
+
+    # Kafka protocol version
+    - name: version
+      value: "2.8.0"
+
+    # Max message bytes (10MB for cloud)
+    - name: maxMessageBytes
+      value: "10485760"
+
+    # Producer acks (all = wait for all in-sync replicas)
+    - name: acks
+      value: "all"
+
+    # Producer max retry
+    - name: maxRetries
+      value: "3"
+
+    # Compression (snappy for balanced CPU/compression ratio)
+    - name: compression
+      value: "snappy"
+
+scopes:
+  # Services allowed to use this component
+  - api-service
+  - recurring-task-service
+  - notification-service
+  - audit-service
+  - websocket-sync-service

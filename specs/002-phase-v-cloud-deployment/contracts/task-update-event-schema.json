@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://todo-chatbot.example.com/schemas/task-update-event.json",
+  "title": "Task Update Event",
+  "description": "Lightweight event for WebSocket real-time synchronization",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema_version",
+    "event_type",
+    "timestamp",
+    "user_id",
+    "operation",
+    "task_id",
+    "task_snapshot"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier (UUID v4)"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Schema version (e.g., '1.0')",
+      "examples": ["1.0", "1.1"]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["task.sync"],
+      "description": "Type of sync event"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was published"
+    },
+    "user_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "User whose tasks are being synced"
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["create", "update", "delete"],
+      "description": "Type of operation performed on task"
+    },
+    "task_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Task identifier"
+    },
+    "task_snapshot": {
+      "type": "object",
+      "required": ["title", "status", "updated_at"],
+      "description": "Minimal task data for UI update",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Task title"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "completed"],
+          "description": "Current task status"
+        },
+        "priority": {
+          "type": ["string", "null"],
+          "enum": ["low", "medium", "high", "urgent", null],
+          "description": "Task priority level"
+        },
+        "due_date": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Task due date"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Task last update timestamp"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "770e8400-e29b-41d4-a716-446655440002",
+      "schema_version": "1.0",
+      "event_type": "task.sync",
+      "timestamp": "2026-01-02T10:05:00Z",
+      "user_id": 456,
+      "operation": "update",
+      "task_id": 123,
+      "task_snapshot": {
+        "title": "Complete project proposal",
+        "status": "in_progress",
+        "priority": "high",
+        "due_date": "2026-01-10T17:00:00Z",
+        "updated_at": "2026-01-02T10:05:00Z"
+      }
+    }
+  ]
+}

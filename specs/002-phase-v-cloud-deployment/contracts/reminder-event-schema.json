@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://todo-chatbot.example.com/schemas/reminder-event.json",
+  "title": "Reminder Event",
+  "description": "Event published when a task reminder is due",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema_version",
+    "event_type",
+    "timestamp",
+    "task_id",
+    "user_id",
+    "due_date",
+    "task_title",
+    "notification_channels",
+    "reminder_time"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier (UUID v4)"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Schema version (e.g., '1.0')",
+      "examples": ["1.0", "1.1"]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["reminder.due"],
+      "description": "Type of reminder event"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was published"
+    },
+    "task_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Task identifier for the reminder"
+    },
+    "user_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "User who should receive the reminder"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Task due date"
+    },
+    "task_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Task title for reminder message"
+    },
+    "task_description": {
+      "type": ["string", "null"],
+      "description": "Task description for reminder context"
+    },
+    "notification_channels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["email", "sms", "push"]
+      },
+      "minItems": 1,
+      "description": "Channels to send reminder through"
+    },
+    "reminder_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When reminder should be sent"
+    }
+  },
+  "examples": [
+    {
+      "event_id": "660e8400-e29b-41d4-a716-446655440001",
+      "schema_version": "1.0",
+      "event_type": "reminder.due",
+      "timestamp": "2026-01-09T17:00:00Z",
+      "task_id": 123,
+      "user_id": 456,
+      "due_date": "2026-01-10T17:00:00Z",
+      "task_title": "Complete project proposal",
+      "task_description": "Finalize Q1 2026 project proposal",
+      "notification_channels": ["email"],
+      "reminder_time": "2026-01-09T17:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+# Dapr State Store Component for Cloud PostgreSQL (Production)
+# Uses managed PostgreSQL (Neon, Azure Database, Cloud SQL)
+# Production-optimized connection pool settings
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: postgres-statestore
+  namespace: todo-app-prod
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    # Connection string from Kubernetes Secret
+    - name: connectionString
+      secretKeyRef:
+        name: backend-secrets
+        key: DATABASE_URL
+
+    # Table name for storing state
+    - name: tableName
+      value: "dapr_state"
+
+    # Metadata table name
+    - name: metadataTableName
+      value: "dapr_state_metadata"
+
+    # Connection timeout
+    - name: timeoutInSeconds
+      value: "30"
+
+    # Max connection pool size (higher for production)
+    - name: maxConns
+      value: "50"
+
+    # Connection max idle time
+    - name: connectionMaxIdleTime
+      value: "300"
+
+    # Cleanup interval for expired keys
+    - name: cleanupIntervalInSeconds
+      value: "3600"
+
+    # Enable query timeouts
+    - name: queryExecMode
+      value: "exec"
+
+scopes:
+  # Services allowed to use this component
+  - api-service
+  - recurring-task-service
+  - notification-service

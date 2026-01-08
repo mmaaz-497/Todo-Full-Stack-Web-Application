@@ -1,0 +1,61 @@
+# Version control
+.git
+.gitignore
+
+# Environment files (use docker-compose env vars instead)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+logs
+
+# Dependencies (will be installed in container)
+node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+.venv
+env
+ENV
+
+# Testing
+.coverage
+.pytest_cache
+htmlcov
+.tox
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist
+build
+*.egg-info
+
+# Database files (use volumes instead)
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation (not needed in containers)
+README.md
+*.md
+!requirements.txt
+
+# Backup files
+*-backup
+*.bak

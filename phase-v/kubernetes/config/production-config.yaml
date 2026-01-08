@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: production-config
+  namespace: default
+data:
+  # Environment
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+
+  # Service URLs
+  BETTER_AUTH_URL: "http://better-auth-service.default.svc.cluster.local:3001"
+
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_TASK_EVENTS_TOPIC: "task-events"
+  KAFKA_REMINDERS_TOPIC: "reminders"
+  KAFKA_TASK_UPDATES_TOPIC: "task-updates"
+  KAFKA_AUDIT_TOPIC: "audit-logs"
+
+  # Kafka Consumer Groups
+  AUDIT_CONSUMER_GROUP: "audit-service-group"
+  RECURRING_TASK_CONSUMER_GROUP: "recurring-task-service-group"
+  NOTIFICATION_CONSUMER_GROUP: "notification-service-group"
+  WEBSOCKET_CONSUMER_GROUP: "websocket-sync-service-group"
+
+  # Database Configuration
+  DB_POOL_SIZE: "10"
+  DB_MAX_OVERFLOW: "20"
+  DB_POOL_TIMEOUT: "30"
+  DB_ECHO: "false"
+
+  # OpenAI Configuration
+  OPENAI_MODEL: "gpt-4"
+  OPENAI_TEMPERATURE: "0.7"
+  OPENAI_MAX_TOKENS: "500"
+
+  # SMTP Configuration
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_FROM_NAME: "Todo App Notifications"
+  SMTP_USE_TLS: "true"
+
+  # Feature Flags
+  ENABLE_AI_CHAT: "true"
+  ENABLE_RECURRING_TASKS: "true"
+  ENABLE_NOTIFICATIONS: "true"
+  ENABLE_AUDIT_LOGS: "true"
+  ENABLE_WEBSOCKET_SYNC: "true"
+
+  # Service Ports
+  API_SERVICE_PORT: "8000"
+  RECURRING_TASK_SERVICE_PORT: "8001"
+  NOTIFICATION_SERVICE_PORT: "8002"
+  AUDIT_SERVICE_PORT: "8003"
+  WEBSOCKET_SYNC_SERVICE_PORT: "8004"
+
+  # Performance Tuning
+  WORKER_CONNECTIONS: "1000"
+  KEEPALIVE_TIMEOUT: "65"
+  MAX_REQUESTS: "1000"
+  MAX_REQUESTS_JITTER: "50"
+
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_PER_MINUTE: "60"
+
+  # CORS Configuration
+  CORS_ORIGINS: "https://todo.yourdomain.com"
+  CORS_CREDENTIALS: "true"

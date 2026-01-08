@@ -1,0 +1,103 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: todo-app-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # WebSocket support for sync service
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Session affinity for WebSocket
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "ws-session"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "10800"
+spec:
+  ingressClassName: nginx
+  rules:
+  # API Service
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 8000
+
+  # WebSocket Sync Service
+  - host: ws.yourdomain.com
+    http:
+      paths:
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: websocket-sync-service
+            port:
+              number: 8004
+
+  # Audit Service (optional, can be internal only)
+  - host: audit.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: audit-service
+            port:
+              number: 8003
+
+  # TLS configuration (uncomment when you have certificates)
+  # tls:
+  # - hosts:
+  #   - api.yourdomain.com
+  #   - ws.yourdomain.com
+  #   - audit.yourdomain.com
+  #   secretName: tls-certificate
+---
+# Ingress for local development (Minikube)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: todo-app-ingress-local
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      # API Service at /api
+      - path: /api(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 8000
+
+      # WebSocket at /ws
+      - path: /ws(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: websocket-sync-service
+            port:
+              number: 8004
+
+      # Audit at /audit
+      - path: /audit(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: audit-service
+            port:
+              number: 8003

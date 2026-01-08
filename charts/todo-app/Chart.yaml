@@ -1,0 +1,30 @@
+apiVersion: v2
+name: todo-app
+description: A Helm chart for Todo AI Chatbot Application
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - todo
+  - ai
+  - chatbot
+  - microservices
+  - kubernetes
+home: https://github.com/yourusername/todo-app
+sources:
+  - https://github.com/yourusername/todo-app
+maintainers:
+  - name: Todo App Team
+    email: admin@yourdomain.com
+icon: https://yourdomain.com/logo.png
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: kafka
+    version: "26.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: kafka.enabled
+annotations:
+  category: Application

@@ -1,0 +1,102 @@
+# Production Environment Values
+# Override default values for production deployment
+
+environment: production
+
+# Use production domain
+domain: todo.yourdomain.com
+adminEmail: admin@yourdomain.com
+
+# Higher replica counts for production
+apiService:
+  replicaCount: 5
+  autoscaling:
+    enabled: true
+    minReplicas: 5
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+recurringTaskService:
+  replicaCount: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 10
+
+notificationService:
+  replicaCount: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 10
+
+auditService:
+  replicaCount: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 10
+
+websocketSyncService:
+  replicaCount: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 10
+
+# Use DigitalOcean Managed Database
+postgresql:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  host: "your-db-host.db.ondigitalocean.com"
+  port: 25060
+  username: "doadmin"
+  password: "your-db-password"
+  database: "defaultdb"
+  sslMode: "require"
+
+# Use external Kafka (optional)
+kafka:
+  enabled: true
+  replicaCount: 3
+  persistence:
+    enabled: true
+    size: 50Gi
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1000m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+# Enable monitoring
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+    adminPassword: "CHANGE-ME-IN-PRODUCTION"
+
+# Enable security features
+networkPolicies:
+  enabled: true
+
+podSecurityPolicy:
+  enabled: true
+
+# Production ingress with SSL
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/limit-rps: "10"

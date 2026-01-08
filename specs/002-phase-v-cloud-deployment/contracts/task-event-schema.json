@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://todo-chatbot.example.com/schemas/task-event.json",
+  "title": "Task Event",
+  "description": "Event published when a task is created, updated, deleted, or completed",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema_version",
+    "event_type",
+    "timestamp",
+    "task_id",
+    "user_id",
+    "task_data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier (UUID v4)"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Schema version (e.g., '1.0')",
+      "examples": ["1.0", "1.1"]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["task.created", "task.updated", "task.deleted", "task.completed"],
+      "description": "Type of task event"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was published"
+    },
+    "task_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Unique task identifier"
+    },
+    "user_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "User who owns the task"
+    },
+    "task_data": {
+      "type": "object",
+      "required": ["title", "status", "created_at"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Task title"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Task description (optional)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "completed"],
+          "description": "Current task status"
+        },
+        "priority": {
+          "type": ["string", "null"],
+          "enum": ["low", "medium", "high", "urgent", null],
+          "description": "Task priority level (Phase V)"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "User-defined tags (Phase V)"
+        },
+        "due_date": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Task due date (Phase V)"
+        },
+        "reminder_offset": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+ (second|minute|hour|day|week)s?$",
+          "description": "ISO 8601 duration before due_date to send reminder (Phase V)",
+          "examples": ["1 hour", "1 day", "1 week"]
+        },
+        "recurrence_rule": {
+          "type": ["object", "null"],
+          "description": "Recurrence pattern (Phase V)",
+          "required": ["frequency", "interval"],
+          "properties": {
+            "frequency": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"],
+              "description": "Recurrence frequency"
+            },
+            "interval": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Every N days/weeks/months"
+            },
+            "days_of_week": {
+              "type": ["array", "null"],
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 6
+              },
+              "description": "Days of week for weekly recurrence (0=Sunday, 6=Saturday)"
+            },
+            "day_of_month": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "maximum": 31,
+              "description": "Day of month for monthly recurrence"
+            },
+            "end_date": {
+              "type": ["string", "null"],
+              "format": "date-time",
+              "description": "Stop generating occurrences after this date"
+            }
+          }
+        },
+        "parent_task_id": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Links recurring task occurrences to original task (Phase V)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Task creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Task last update timestamp"
+        },
+        "completed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Task completion timestamp"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "550e8400-e29b-41d4-a716-446655440000",
+      "schema_version": "1.0",
+      "event_type": "task.created",
+      "timestamp": "2026-01-02T10:00:00Z",
+      "task_id": 123,
+      "user_id": 456,
+      "task_data": {
+        "title": "Complete project proposal",
+        "description": "Finalize Q1 2026 project proposal",
+        "status": "pending",
+        "priority": "high",
+        "tags": ["work", "urgent"],
+        "due_date": "2026-01-10T17:00:00Z",
+        "reminder_offset": "1 day",
+        "recurrence_rule": {
+          "frequency": "weekly",
+          "interval": 1,
+          "days_of_week": [1]
+        },
+        "parent_task_id": null,
+        "created_at": "2026-01-02T10:00:00Z",
+        "updated_at": "2026-01-02T10:00:00Z",
+        "completed_at": null
+      }
+    }
+  ]
+}

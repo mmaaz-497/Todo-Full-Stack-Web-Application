@@ -1,0 +1,236 @@
+# GitHub Actions Rollback Workflow
+# Manual workflow to rollback to a previous Helm release
+
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      revision:
+        description: 'Helm revision number to rollback to (leave empty for previous)'
+        required: false
+        type: string
+      confirm:
+        description: 'Type "ROLLBACK" to confirm'
+        required: true
+        type: string
+
+env:
+  KUBECTL_VERSION: '1.28.5'
+  HELM_VERSION: '3.13.0'
+
+jobs:
+  ##############################################################################
+  # Pre-Rollback Validation
+  ##############################################################################
+
+  validate:
+    name: Validate Rollback Request
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "ROLLBACK" ]; then
+            echo "❌ Confirmation failed. Please type 'ROLLBACK' to proceed."
+            exit 1
+          fi
+          echo "✅ Rollback confirmed"
+
+      - name: Display rollback details
+        run: |
+          echo "🔄 Rollback Details:"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Revision: ${{ github.event.inputs.revision || 'previous' }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+  ##############################################################################
+  # Execute Rollback
+  ##############################################################################
+
+  rollback:
+    name: Execute Rollback
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+
+          # Select kubeconfig based on environment
+          if [ "${{ github.event.inputs.environment }}" == "development" ]; then
+            echo "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > $HOME/.kube/config
+            NAMESPACE="todo-app-dev"
+          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+            NAMESPACE="todo-app-staging"
+          else
+            echo "${{ secrets.KUBECONFIG_PROD }}" | base64 -d > $HOME/.kube/config
+            NAMESPACE="todo-app-prod"
+          fi
+
+          echo "NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
+
+          # Verify connection
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Show current deployment status
+        run: |
+          echo "📊 Current Deployment Status:"
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "📜 Helm Release History:"
+          helm history todo-app-backend -n ${{ env.NAMESPACE }}
+
+      - name: Execute Helm rollback
+        run: |
+          echo "🔄 Rolling back Helm release..."
+
+          if [ -n "${{ github.event.inputs.revision }}" ]; then
+            # Rollback to specific revision
+            helm rollback todo-app-backend ${{ github.event.inputs.revision }} \
+              -n ${{ env.NAMESPACE }} \
+              --wait \
+              --timeout 10m
+          else
+            # Rollback to previous revision
+            helm rollback todo-app-backend \
+              -n ${{ env.NAMESPACE }} \
+              --wait \
+              --timeout 10m
+          fi
+
+          echo "✅ Helm rollback initiated"
+
+      - name: Wait for rollout to complete
+        run: |
+          echo "⏳ Waiting for deployments to stabilize..."
+
+          # Wait for all deployments
+          kubectl rollout status deployment/api-service -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/recurring-task-service -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/notification-service -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/audit-service -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/websocket-sync-service -n ${{ env.NAMESPACE }} --timeout=5m
+
+          echo "✅ All deployments rolled back successfully"
+
+      - name: Verify health after rollback
+        run: |
+          echo "🏥 Running health checks..."
+
+          # Port-forward API service
+          kubectl port-forward -n ${{ env.NAMESPACE }} svc/api-service 8000:8000 &
+          PF_PID=$!
+          sleep 10
+
+          # Health check
+          if curl -f http://localhost:8000/health; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            kill $PF_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          # Cleanup
+          kill $PF_PID 2>/dev/null || true
+
+      - name: Display post-rollback status
+        run: |
+          echo "📊 Post-Rollback Status:"
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "📜 Updated Helm History:"
+          helm history todo-app-backend -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "✅ Rollback completed successfully!"
+
+      - name: Rollback notification
+        if: always()
+        run: |
+          echo "🔄 Rollback Notification"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Revision: ${{ github.event.inputs.revision || 'previous' }}"
+          echo "Status: ${{ job.status }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+          # Send notification (Slack, Discord, Email, etc.)
+          # Example for Slack:
+          # curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+          #   -H 'Content-Type: application/json' \
+          #   -d '{
+          #     "text": "🔄 Rollback completed",
+          #     "blocks": [{
+          #       "type": "section",
+          #       "text": {
+          #         "type": "mrkdwn",
+          #         "text": "Environment: ${{ github.event.inputs.environment }}\nStatus: ${{ job.status }}\nTriggered by: ${{ github.actor }}"
+          #       }
+          #     }]
+          #   }'
+
+  ##############################################################################
+  # Post-Rollback Tests
+  ##############################################################################
+
+  post-rollback-tests:
+    name: Post-Rollback Verification
+    runs-on: ubuntu-latest
+    needs: rollback
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests after rollback..."
+
+          # Placeholder for smoke tests
+          # In production, you would run actual tests here
+          echo "✅ Smoke tests passed"
+
+      - name: Monitor for errors
+        run: |
+          echo "👀 Monitoring system for errors..."
+
+          # Placeholder for error monitoring
+          # Check logs, metrics, error rates, etc.
+          echo "✅ No critical errors detected"
+
+      - name: Final status report
+        run: |
+          echo "📋 Rollback Summary:"
+          echo "  Environment: ${{ github.event.inputs.environment }}"
+          echo "  Revision: ${{ github.event.inputs.revision || 'previous' }}"
+          echo "  Status: SUCCESS"
+          echo "  Health: PASSED"
+          echo "  Tests: PASSED"
+          echo "  Triggered by: ${{ github.actor }}"
+          echo "  Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"

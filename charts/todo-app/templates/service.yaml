@@ -1,0 +1,26 @@
+{{- range $service := list "apiService" "recurringTaskService" "notificationService" "auditService" "websocketSyncService" }}
+{{- with (index $.Values $service) }}
+{{- if .enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  labels:
+    app: {{ .name }}
+    chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    release: {{ $.Release.Name }}
+    heritage: {{ $.Release.Service }}
+spec:
+  type: {{ .service.type }}
+  ports:
+  - port: {{ .service.port }}
+    targetPort: {{ .service.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .name }}
+    release: {{ $.Release.Name }}
+{{- end }}
+{{- end }}
+{{- end }}

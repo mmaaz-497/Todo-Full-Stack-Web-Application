@@ -1,0 +1,45 @@
+# Dapr State Store Component for Local PostgreSQL (Minikube)
+# Uses Neon Serverless PostgreSQL for local development
+# Credentials stored in Kubernetes Secrets
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: postgres-statestore
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    # Connection string from Kubernetes Secret
+    # Format: postgres://user:password@host:port/database?sslmode=require
+    - name: connectionString
+      secretKeyRef:
+        name: backend-secrets
+        key: DATABASE_URL
+
+    # Table name for storing state
+    - name: tableName
+      value: "dapr_state"
+
+    # Metadata table name
+    - name: metadataTableName
+      value: "dapr_state_metadata"
+
+    # Connection timeout
+    - name: timeoutInSeconds
+      value: "30"
+
+    # Max connection pool size
+    - name: maxConns
+      value: "10"
+
+    # Cleanup interval for expired keys
+    - name: cleanupIntervalInSeconds
+      value: "3600"
+
+scopes:
+  # Services allowed to use this component
+  - api-service
+  - recurring-task-service
+  - notification-service

@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: staging-config
+  namespace: default
+data:
+  # Environment
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "DEBUG"
+  LOG_FORMAT: "text"
+
+  # Service URLs
+  BETTER_AUTH_URL: "http://better-auth-service.default.svc.cluster.local:3001"
+
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_TASK_EVENTS_TOPIC: "staging-task-events"
+  KAFKA_REMINDERS_TOPIC: "staging-reminders"
+  KAFKA_TASK_UPDATES_TOPIC: "staging-task-updates"
+  KAFKA_AUDIT_TOPIC: "staging-audit-logs"
+
+  # Kafka Consumer Groups
+  AUDIT_CONSUMER_GROUP: "staging-audit-service-group"
+  RECURRING_TASK_CONSUMER_GROUP: "staging-recurring-task-service-group"
+  NOTIFICATION_CONSUMER_GROUP: "staging-notification-service-group"
+  WEBSOCKET_CONSUMER_GROUP: "staging-websocket-sync-service-group"
+
+  # Database Configuration
+  DB_POOL_SIZE: "5"
+  DB_MAX_OVERFLOW: "10"
+  DB_POOL_TIMEOUT: "30"
+  DB_ECHO: "true"
+
+  # OpenAI Configuration
+  OPENAI_MODEL: "gpt-3.5-turbo"
+  OPENAI_TEMPERATURE: "0.7"
+  OPENAI_MAX_TOKENS: "300"
+
+  # SMTP Configuration
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_FROM_NAME: "Todo App Staging"
+  SMTP_USE_TLS: "true"
+
+  # Feature Flags
+  ENABLE_AI_CHAT: "true"
+  ENABLE_RECURRING_TASKS: "true"
+  ENABLE_NOTIFICATIONS: "false"
+  ENABLE_AUDIT_LOGS: "true"
+  ENABLE_WEBSOCKET_SYNC: "true"
+
+  # Service Ports
+  API_SERVICE_PORT: "8000"
+  RECURRING_TASK_SERVICE_PORT: "8001"
+  NOTIFICATION_SERVICE_PORT: "8002"
+  AUDIT_SERVICE_PORT: "8003"
+  WEBSOCKET_SYNC_SERVICE_PORT: "8004"
+
+  # Performance Tuning
+  WORKER_CONNECTIONS: "500"
+  KEEPALIVE_TIMEOUT: "30"
+  MAX_REQUESTS: "500"
+  MAX_REQUESTS_JITTER: "25"
+
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "false"
+  RATE_LIMIT_PER_MINUTE: "120"
+
+  # CORS Configuration
+  CORS_ORIGINS: "*"
+  CORS_CREDENTIALS: "true"

@@ -1,0 +1,17 @@
+apiVersion: kafka.strimzi.io/v1beta2
+  kind: Kafka
+  metadata:
+    name: kafka-cluster
+    namespace: kafka
+  spec:
+    kafka:
+      version: 3.6.1
+      replicas: 1
+      listeners:
+        plain: {}
+      storage:
+        type: ephemeral
+    zookeeper:
+      replicas: 1
+      storage:
+        type: ephemeral

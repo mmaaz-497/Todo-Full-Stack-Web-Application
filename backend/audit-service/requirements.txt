@@ -1,0 +1,7 @@
+fastapi==0.115.0
+uvicorn==0.31.1
+sqlmodel==0.0.22
+psycopg[binary]==3.2.3
+aiokafka==0.11.0
+pydantic-settings==2.5.2
+python-dotenv==1.0.1

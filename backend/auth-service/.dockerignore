@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Development
+.git
+.gitignore
+README.md
+*.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage
+*.test.ts
+*.spec.ts
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# NOTE: dist folder is NOT excluded - we need it for production image

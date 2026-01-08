@@ -1,0 +1,319 @@
+openapi: 3.0.3
+info:
+  title: User Sign-Up API
+  description: User registration endpoint with comprehensive validation error handling
+  version: 1.0.0
+  contact:
+    name: Auth Service Team
+    email: auth@example.com
+
+servers:
+  - url: http://localhost:3001
+    description: Local development auth service
+  - url: https://auth.example.com
+    description: Production auth service
+
+paths:
+  /api/auth/signup/email:
+    post:
+      summary: Create new user account
+      description: |
+        Register a new user with email and password. Returns authentication token
+        on success. Provides specific validation error messages for all input failures.
+
+        Rate limited to 5 requests per minute per IP address to prevent abuse.
+      operationId: signUpEmail
+      tags:
+        - Authentication
+        - User Management
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+            examples:
+              withName:
+                summary: Sign-up with all fields
+                value:
+                  email: 'newuser@example.com'
+                  password: 'SecurePassword123'
+                  name: 'Jane Smith'
+              withoutName:
+                summary: Sign-up without optional name
+                value:
+                  email: 'minimal@example.com'
+                  password: 'ValidPass123'
+
+      responses:
+        '201':
+          description: Account created successfully - returns token and user profile
+          headers:
+            set-auth-token:
+              description: Authentication token (for cross-origin compatibility)
+              schema:
+                type: string
+                example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignUpSuccessResponse'
+              examples:
+                successWithName:
+                  summary: Successful registration with name
+                  value:
+                    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                    user:
+                      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+                      email: 'newuser@example.com'
+                      name: 'Jane Smith'
+                      emailVerified: false
+                successWithoutName:
+                  summary: Successful registration without name
+                  value:
+                    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                    user:
+                      id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
+                      email: 'minimal@example.com'
+                      name: null
+                      emailVerified: false
+
+        '400':
+          description: Validation error - input does not meet requirements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                passwordTooShort:
+                  summary: Password shorter than 8 characters
+                  value:
+                    error: 'Password must be at least 8 characters long'
+                passwordTooLong:
+                  summary: Password exceeds 128 characters
+                  value:
+                    error: 'Password must not exceed 128 characters'
+                invalidEmailFormat:
+                  summary: Email does not match valid format
+                  value:
+                    error: 'Invalid email address format'
+                missingEmail:
+                  summary: Email field not provided
+                  value:
+                    error: 'Email is required'
+                missingPassword:
+                  summary: Password field not provided
+                  value:
+                    error: 'Password is required'
+                emptyEmail:
+                  summary: Email is empty string
+                  value:
+                    error: 'Email is required'
+                emptyPassword:
+                  summary: Password is empty string
+                  value:
+                    error: 'Password is required'
+
+        '409':
+          description: Conflict - email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictError'
+              example:
+                error: 'An account with this email already exists'
+
+        '413':
+          description: Payload too large - request body exceeds size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Payload Too Large'
+                message: 'Request body exceeds maximum size of 204800 bytes'
+
+        '429':
+          description: Rate limit exceeded - too many sign-up attempts
+          headers:
+            Retry-After:
+              description: Seconds until rate limit resets
+              schema:
+                type: integer
+                example: 60
+            X-RateLimit-Limit:
+              description: Maximum requests allowed per window
+              schema:
+                type: integer
+                example: 5
+            X-RateLimit-Remaining:
+              description: Remaining requests in current window
+              schema:
+                type: integer
+                example: 0
+            X-RateLimit-Reset:
+              description: Unix timestamp when rate limit resets
+              schema:
+                type: integer
+                example: 1703340000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+              example:
+                error: 'Too Many Requests'
+                message: 'Rate limit exceeded. Please try again later.'
+                retryAfter: 60
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Internal Server Error'
+                message: 'Something went wrong'
+
+components:
+  schemas:
+    SignUpRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: User's email address (will be lowercased and used for login)
+          example: 'newuser@example.com'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: User's password (will be hashed before storage)
+          example: 'SecurePassword123'
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: User's display name (optional)
+          example: 'Jane Smith'
+      description: User registration request body
+
+    SignUpSuccessResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          description: JWT authentication token for subsequent API requests
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      description: Successful sign-up response with token and user profile
+
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - emailVerified
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: 'newuser@example.com'
+        name:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: User's display name (optional)
+          example: 'Jane Smith'
+        emailVerified:
+          type: boolean
+          description: Whether email has been verified (currently always false)
+          example: false
+      description: User profile information
+
+    ValidationError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Specific validation error message
+          enum:
+            - 'Password must be at least 8 characters long'
+            - 'Password must not exceed 128 characters'
+            - 'Invalid email address format'
+            - 'Email is required'
+            - 'Password is required'
+          example: 'Password must be at least 8 characters long'
+      description: Validation error response with specific field-level message
+
+    ConflictError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Conflict error message
+          example: 'An account with this email already exists'
+      description: Conflict error when resource already exists
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error type or message
+          example: 'Internal Server Error'
+        message:
+          type: string
+          description: Detailed error message (may be hidden in production)
+          example: 'Database connection failed'
+      description: Generic error response
+
+    RateLimitError:
+      type: object
+      required:
+        - error
+        - message
+        - retryAfter
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: 'Too Many Requests'
+        message:
+          type: string
+          description: Detailed error message
+          example: 'Rate limit exceeded. Please try again later.'
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retrying
+          example: 60
+      description: Rate limit error response
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: User Management
+    description: User account management endpoints

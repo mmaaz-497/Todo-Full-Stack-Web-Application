@@ -1,0 +1,103 @@
+# Dapr Configuration with Telemetry, Tracing, and Metrics
+# Phase V: Observability & Reliability
+
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: dapr-config
+  namespace: default
+spec:
+  # Distributed Tracing Configuration
+  tracing:
+    samplingRate: "1"  # 100% sampling for development, reduce in production
+    zipkin:
+      endpointAddress: "http://zipkin.monitoring.svc.cluster.local:9411/api/v2/spans"
+    otel:
+      endpointAddress: "otel-collector.monitoring.svc.cluster.local:4317"
+      isSecure: false
+      protocol: grpc
+
+  # Metrics Configuration
+  metric:
+    enabled: true
+    rules:
+      - name: appmetrics
+        labels:
+          - name: app_id
+            value: app_id
+          - name: method
+            value: method
+          - name: status_code
+            value: status_code
+
+  # mTLS Configuration
+  mtls:
+    enabled: true
+    workloadCertTTL: "24h"
+    allowedClockSkew: "15m"
+    sentryAddress: "dapr-sentry.dapr-system.svc.cluster.local:443"
+
+  # Access Control (optional)
+  accessControl:
+    defaultAction: allow
+    trustDomain: "public"
+    policies:
+      - appId: api-service
+        defaultAction: allow
+        trustDomain: "public"
+        namespace: "default"
+        operations:
+          - name: /api/*
+            httpVerb: ["*"]
+            action: allow
+
+      - appId: recurring-task-service
+        defaultAction: allow
+        operations:
+          - name: /dapr/subscribe
+            action: allow
+
+  # API Configuration
+  api:
+    allowed:
+      - name: state
+        version: v1.0
+        protocol: grpc
+      - name: pubsub
+        version: v1.0
+        protocol: grpc
+      - name: bindings
+        version: v1.0
+        protocol: grpc
+      - name: secrets
+        version: v1.0
+        protocol: grpc
+      - name: invoke
+        version: v1.0
+        protocol: grpc
+
+  # Logging Configuration
+  logging:
+    apiLogging:
+      enabled: true
+      obfuscateURLs: false
+      omitHealthChecks: true
+
+  # Features
+  features:
+    - name: "ServiceInvocation"
+      enabled: true
+    - name: "PubSub"
+      enabled: true
+    - name: "State"
+      enabled: true
+    - name: "Secrets"
+      enabled: true
+
+  # HTTP Pipeline (optional middleware)
+  httpPipeline:
+    handlers:
+      - name: cors
+        type: middleware.http.cors
+      - name: oauth2
+        type: middleware.http.oauth2

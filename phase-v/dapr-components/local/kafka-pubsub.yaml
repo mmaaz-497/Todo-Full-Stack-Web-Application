@@ -1,0 +1,57 @@
+# Dapr Pub/Sub Component for Local Kafka (Minikube)
+# Uses Strimzi Kafka cluster running in Minikube
+# Connects to kafka-cluster-kafka-bootstrap service on port 9092
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: default
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    # Kafka broker addresses (Strimzi service DNS)
+    - name: brokers
+      value: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+
+    # Consumer group configuration
+    # Each service gets its own consumer group to receive all events
+    - name: consumerGroup
+      value: "dapr-consumer-group"
+
+    # Client ID for producer identification
+    - name: clientID
+      value: "dapr-kafka-client"
+
+    # Authentication (disabled for local development)
+    - name: authRequired
+      value: "false"
+
+    # Consumer timeout
+    - name: consumerFetchMin
+      value: "1"
+
+    # Consumer fetch default
+    - name: consumerFetchDefault
+      value: "1024"
+
+    # Initial offset (oldest ensures no message loss on first connect)
+    - name: initialOffset
+      value: "oldest"
+
+    # Protocol version
+    - name: version
+      value: "2.0.0"
+
+    # Max message bytes (1MB default)
+    - name: maxMessageBytes
+      value: "1048576"
+
+scopes:
+  # Services allowed to use this component
+  - api-service
+  - recurring-task-service
+  - notification-service
+  - audit-service
+  - websocket-sync-service

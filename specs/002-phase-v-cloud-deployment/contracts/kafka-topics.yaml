@@ -1,0 +1,103 @@
+# Kafka Topic Specifications for Phase V
+# These topics support the event-driven architecture
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task-events
+  labels:
+    strimzi.io/cluster: kafka-cluster
+    app: todo-chatbot
+    environment: dev
+spec:
+  partitions: 6
+  replicas: 3  # Production: 3, Local: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    compression.type: snappy
+    min.insync.replicas: 2  # Production: 2, Local: 1
+    cleanup.policy: delete
+  # Producers: api-service (Chat API)
+  # Consumers: recurring-task-service, audit-service
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: reminders
+  labels:
+    strimzi.io/cluster: kafka-cluster
+    app: todo-chatbot
+    environment: dev
+spec:
+  partitions: 3
+  replicas: 3  # Production: 3, Local: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    compression.type: snappy
+    min.insync.replicas: 2  # Production: 2, Local: 1
+    cleanup.policy: delete
+  # Producers: api-service (via Dapr Jobs API callback)
+  # Consumers: notification-service, audit-service
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task-updates
+  labels:
+    strimzi.io/cluster: kafka-cluster
+    app: todo-chatbot
+    environment: dev
+spec:
+  partitions: 6
+  replicas: 3  # Production: 3, Local: 1
+  config:
+    retention.ms: 86400000  # 1 day (shorter retention for sync events)
+    compression.type: snappy
+    min.insync.replicas: 2  # Production: 2, Local: 1
+    cleanup.policy: delete
+  # Producers: api-service, recurring-task-service
+  # Consumers: websocket-sync-service, audit-service
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: dlq-events
+  labels:
+    strimzi.io/cluster: kafka-cluster
+    app: todo-chatbot
+    environment: dev
+spec:
+  partitions: 3
+  replicas: 3  # Production: 3, Local: 1
+  config:
+    retention.ms: 2592000000  # 30 days (longer for investigation)
+    compression.type: snappy
+    min.insync.replicas: 2  # Production: 2, Local: 1
+    cleanup.policy: delete
+  # Producers: All event consumers (on max retry failure)
+  # Consumers: Manual inspection / retry service (Phase VI)
+
+---
+# Topic Configuration Summary:
+#
+# Topic Name      | Partitions | Replication | Retention | Purpose
+# ----------------|------------|-------------|-----------|------------------
+# task-events     | 6          | 3           | 7 days    | Task CRUD events
+# reminders       | 3          | 3           | 7 days    | Reminder notifications
+# task-updates    | 6          | 3           | 1 day     | WebSocket sync
+# dlq-events      | 3          | 3           | 30 days   | Failed events
+#
+# Partition Key Strategy:
+# - task-events: task_id (ensures ordering for related events)
+# - reminders: task_id (co-locate task reminders)
+# - task-updates: user_id (co-locate user updates for WebSocket)
+# - dlq-events: original_event_id (random distribution)
+#
+# Local Development Overrides:
+# - Set replicas: 1 (single broker)
+# - Set min.insync.replicas: 1
+# - Reduce retention for faster testing if needed

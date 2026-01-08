@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-sync-service
+  namespace: default
+  labels:
+    app: websocket-sync-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: websocket-sync-service
+  template:
+    metadata:
+      labels:
+        app: websocket-sync-service
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "websocket-sync-service"
+        dapr.io/app-port: "8004"
+        dapr.io/log-level: "info"
+        dapr.io/config: "dapr-config"
+    spec:
+      containers:
+      - name: websocket-sync-service
+        image: websocket-sync-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8004
+          name: http
+        env:
+        - name: DAPR_HTTP_URL
+          value: "http://localhost:3500"
+        - name: DAPR_PUBSUB
+          value: "kafka-pubsub"
+        - name: DAPR_TOPIC
+          value: "task-updates"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8004
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8004
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-sync-service
+  namespace: default
+  labels:
+    app: websocket-sync-service
+spec:
+  selector:
+    app: websocket-sync-service
+  ports:
+  - port: 8004
+    targetPort: 8004
+    name: http
+  type: ClusterIP
+  sessionAffinity: ClientIP  # Sticky sessions for WebSocket
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours

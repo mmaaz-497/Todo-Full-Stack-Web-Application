@@ -1,0 +1,421 @@
+# Helm Chart Values - Cloud Production Deployment
+# For Azure AKS, Google GKE, Oracle OKE
+
+global:
+  environment: production
+  imageRegistry: docker.io/yourusername  # Change to your registry
+  imagePullPolicy: Always
+  imagePullSecrets: []
+
+  # Dapr configuration
+  dapr:
+    enabled: true
+    appId: todo-app-backend
+    appPort: 8000
+    logLevel: info
+    mtls: true
+
+# API Service Configuration
+apiService:
+  enabled: true
+  name: api-service
+  replicaCount: 3
+
+  image:
+    repository: docker.io/yourusername/api-service
+    tag: "1.0.0"
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: DATABASE_URL
+    - name: JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: JWT_SECRET
+    - name: USE_DAPR_INVOCATION
+      value: "true"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Recurring Task Service Configuration
+recurringTaskService:
+  enabled: true
+  name: recurring-task-service
+  replicaCount: 2
+
+  image:
+    repository: docker.io/yourusername/recurring-task-service
+    tag: "1.0.0"
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 5
+
+# Notification Service Configuration
+notificationService:
+  enabled: true
+  name: notification-service
+  replicaCount: 2
+
+  image:
+    repository: docker.io/yourusername/notification-service
+    tag: "1.0.0"
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: SMTP_HOST
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: SMTP_HOST
+    - name: SMTP_PORT
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: SMTP_PORT
+    - name: SMTP_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: SMTP_USERNAME
+    - name: SMTP_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: SMTP_PASSWORD
+    - name: SMTP_FROM_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: SMTP_FROM_EMAIL
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 5
+
+# Audit Service Configuration
+auditService:
+  enabled: true
+  name: audit-service
+  replicaCount: 2
+
+  image:
+    repository: docker.io/yourusername/audit-service
+    tag: "1.0.0"
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: DATABASE_URL
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 5
+
+# WebSocket Sync Service Configuration
+websocketSyncService:
+  enabled: true
+  name: websocket-sync-service
+  replicaCount: 2
+
+  image:
+    repository: docker.io/yourusername/websocket-sync-service
+    tag: "1.0.0"
+    pullPolicy: Always
+
+  service:
+    type: LoadBalancer
+    port: 8080
+    targetPort: 8080
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+      # For GKE:
+      # cloud.google.com/load-balancer-type: "External"
+      # For OKE:
+      # service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: backend-secrets
+          key: JWT_SECRET
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 20
+    periodSeconds: 5
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # CORS headers
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://yourdomain.com"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+  hosts:
+    - host: api.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: api-service
+              port: 8000
+    - host: audit.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: audit-service
+              port: 8000
+
+  tls:
+    - secretName: api-tls-secret
+      hosts:
+        - api.yourdomain.com
+    - secretName: audit-tls-secret
+      hosts:
+        - audit.yourdomain.com
+
+# Network Policy (optional, enable for production)
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # PostgreSQL
+        - protocol: TCP
+          port: 9092  # Kafka
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Node affinity and tolerations (optional)
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false

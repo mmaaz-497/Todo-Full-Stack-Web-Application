@@ -1,0 +1,214 @@
+openapi: 3.0.3
+info:
+  title: Authentication Session API
+  description: Session validation endpoint for verifying authentication tokens
+  version: 1.0.0
+  contact:
+    name: Auth Service Team
+    email: auth@example.com
+
+servers:
+  - url: http://localhost:3001
+    description: Local development auth service
+  - url: https://auth.example.com
+    description: Production auth service
+
+paths:
+  /api/auth/session:
+    get:
+      summary: Get current user session
+      description: |
+        Validates the provided Bearer token and returns the authenticated user's
+        information. Used by backend services to verify tokens and extract user identity.
+
+        This endpoint performs stateless JWT validation without database queries,
+        providing fast response times (<200ms for 95% of requests).
+      operationId: getSession
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token obtained from sign-in or sign-up
+          schema:
+            type: string
+            pattern: '^Bearer .+'
+            example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+      responses:
+        '200':
+          description: Token is valid - returns user session information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              examples:
+                validSession:
+                  summary: Valid session with all fields
+                  value:
+                    user:
+                      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+                      email: 'user@example.com'
+                      name: 'John Doe'
+                      emailVerified: false
+                sessionWithoutName:
+                  summary: Valid session without optional name
+                  value:
+                    user:
+                      id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
+                      email: 'another@example.com'
+                      name: null
+                      emailVerified: false
+
+        '401':
+          description: Authentication failed - invalid, expired, or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: Token signature is invalid
+                  value:
+                    error: 'Invalid or expired token'
+                expiredToken:
+                  summary: Token has expired
+                  value:
+                    error: 'Invalid or expired token'
+                missingAuth:
+                  summary: No Authorization header provided
+                  value:
+                    error: 'Authorization header is required'
+
+        '429':
+          description: Rate limit exceeded - too many requests
+          headers:
+            Retry-After:
+              description: Seconds until rate limit resets
+              schema:
+                type: integer
+                example: 60
+            X-RateLimit-Limit:
+              description: Maximum requests allowed per window
+              schema:
+                type: integer
+                example: 30
+            X-RateLimit-Remaining:
+              description: Remaining requests in current window
+              schema:
+                type: integer
+                example: 0
+            X-RateLimit-Reset:
+              description: Unix timestamp when rate limit resets
+              schema:
+                type: integer
+                example: 1703340000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+              example:
+                error: 'Too Many Requests'
+                message: 'Rate limit exceeded. Please try again later.'
+                retryAfter: 60
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Internal Server Error'
+                message: 'Something went wrong'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/auth/signin/email or /api/auth/signup/email
+
+  schemas:
+    SessionResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/UserSession'
+      description: Successful session validation response
+
+    UserSession:
+      type: object
+      required:
+        - id
+        - email
+        - emailVerified
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: 'user@example.com'
+        name:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: User's display name (optional)
+          example: 'John Doe'
+        emailVerified:
+          type: boolean
+          description: Whether email has been verified (currently always false)
+          example: false
+      description: Authenticated user information
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: 'Invalid or expired token'
+        message:
+          type: string
+          description: Additional error details (development mode only)
+          example: 'JWT signature verification failed'
+      description: Error response for failed requests
+
+    RateLimitError:
+      type: object
+      required:
+        - error
+        - message
+        - retryAfter
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: 'Too Many Requests'
+        message:
+          type: string
+          description: Detailed error message
+          example: 'Rate limit exceeded. Please try again later.'
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retrying
+          example: 60
+      description: Rate limit error response
+
+tags:
+  - name: Authentication
+    description: User authentication and session management endpoints
