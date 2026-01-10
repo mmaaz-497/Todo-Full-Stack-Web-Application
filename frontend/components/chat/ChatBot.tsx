@@ -55,8 +55,8 @@ export default function ChatBot() {
 
     try {
       // Get user ID and token from localStorage (set during authentication)
-      const token = localStorage.getItem('auth_token');
-      const userStr = localStorage.getItem('user');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
 
       if (!token || !userStr) {
         throw new Error('Please sign in to use the chatbot');

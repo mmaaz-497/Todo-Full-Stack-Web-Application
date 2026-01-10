@@ -85,8 +85,10 @@ export default function TasksPage() {
       else if (err.response?.status === 401) {
         setError('Session expired. Please sign in again.');
         // Clear invalid session
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+        }
         setTimeout(() => router.push('/signin'), 2000);
       }
       // Handle other errors
