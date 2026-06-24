@@ -141,10 +141,15 @@ class TaskCreate(SQLModel):
 
     @validator("priority")
     def priority_valid(cls, v: str) -> str:
-        """Validate priority is one of: HIGH, MEDIUM, LOW."""
-        if v not in [e.value for e in PriorityEnum]:
-            raise ValueError(f"Priority must be one of: {', '.join([e.value for e in PriorityEnum])}")
-        return v
+        """Validate priority case-insensitively; store UPPERCASE (matches the
+        frontend and the list filtering/sorting which use HIGH/MEDIUM/LOW)."""
+        if v is None:
+            return v
+        normalized = v.strip().upper()
+        valid = {e.value.upper() for e in PriorityEnum}  # HIGH, MEDIUM, LOW, URGENT
+        if normalized not in valid:
+            raise ValueError(f"Priority must be one of: {', '.join(sorted(valid))}")
+        return normalized
 
     @validator("tags")
     def tags_valid(cls, v: List[str]) -> List[str]:
@@ -171,10 +176,15 @@ class TaskCreate(SQLModel):
 
     @validator("recurrence_pattern")
     def recurrence_valid(cls, v: str) -> str:
-        """Validate recurrence pattern is one of: none, daily, weekly, monthly."""
-        if v not in [e.value for e in RecurrenceEnum]:
-            raise ValueError(f"Recurrence pattern must be one of: {', '.join([e.value for e in RecurrenceEnum])}")
-        return v
+        """Validate recurrence pattern case-insensitively; store lowercase
+        (matches RecurrenceEnum and the reminder worker)."""
+        if v is None:
+            return v
+        normalized = v.strip().lower()
+        valid = {e.value for e in RecurrenceEnum}  # none, daily, weekly, monthly
+        if normalized not in valid:
+            raise ValueError(f"Recurrence pattern must be one of: {', '.join(sorted(valid))}")
+        return normalized
 
     @root_validator(skip_on_failure=True)
     def reminder_before_due(cls, values):
