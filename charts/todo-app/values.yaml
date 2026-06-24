@@ -1,52 +1,64 @@
-# Default values for todo-app Helm chart
-# This is a YAML-formatted file.
-
-# ============================================
-# Global Configuration
-# ============================================
 global:
-  imageRegistry: registry.digitalocean.com/todo-app
-  imagePullPolicy: Always
-  storageClass: do-block-storage
+  imageRegistry: "681949398892.dkr.ecr.us-east-1.amazonaws.com"
+  imagePullSecrets: []
 
-# ============================================
-# Deployment Environment
-# ============================================
-environment: production
+serviceAccount:
+  create: true
+  name: todo-app-sa
+  annotations: {}
 
-# ============================================
-# Domain Configuration
-# ============================================
-domain: todo.yourdomain.com
-adminEmail: admin@yourdomain.com
+frontend:
+  enabled: true
+  name: todo-frontend
+  replicaCount: 2
+  image:
+    repository: todo-frontend
+    tag: latest
+    pullPolicy: Always
+  env:
+    - name: NEXT_PUBLIC_API_URL
+      value: "http://k8s-todoappf-todoback-885be53f50-f44a0952f48d12af.elb.us-east-1.amazonaws.com:8000"
+    - name: NEXTAUTH_URL
+      value: "http://k8s-todoappf-todoback-885be53f50-f44a0952f48d12af.elb.us-east-1.amazonaws.com:8000"
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 3000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  nodeSelector: {}
 
-# ============================================
-# API Service
-# ============================================
 apiService:
   enabled: true
-  name: api-service
-  replicaCount: 3
+  name: todo-backend
+  replicaCount: 2
   image:
-    repository: api-service
+    repository: todo-backend
     tag: latest
     pullPolicy: Always
   service:
-    type: ClusterIP
+    type: LoadBalancer
     port: 8000
     targetPort: 8000
+  secrets:
+    # Update these with your actual values
+    databaseUrl: "cG9zdGdyZXNxbDovL3Bvc3RncmVzOlNlY3VyZVBhc3N3b3JkMTIzQHRvZG8tcG9zdGdyZXMtcmRzLmN3dmtpbzJxNjF3NS51cy1lYXN0LTEucmRzLmFtYXpvbmF3cy5jb206NTQzMi9wb3N0Z3Jlcw=="
+    openaiApiKey: "c2stcHJvai01V2FzajFfc241dDVfTUQtUC1GRlg3ODJUVDJSRldCQzM1Y1JYMElNOG9raTdibEJPTW4xeC1KRTFpNVMySkcyUjVTRk5FaEdoMEJLQkZKVFBBa0hDOGhjRkhqZlVXM3dkYUQ0TEYxbTRGencRU1lIZUw4V05IYlN3MkZlY0JxNXNXbktCSDhxbEZWT3VMX0lxV0J4SGkwNEE="
+    authSecret: "RWt1UkRKOVExRlR5dkhORDgrdUlYYmVJMUlQRVdYdzNDaHcyL0NubWY1Yz0="
+    authIssuer: "aHR0cDovL2xvY2FsaG9zdDozMDAx"
   resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
     limits:
-      memory: "512Mi"
-      cpu: "500m"
-  autoscaling:
-    enabled: true
-    minReplicas: 3
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  nodeSelector: {}
   livenessProbe:
     httpGet:
       path: /health
@@ -57,275 +69,142 @@ apiService:
     httpGet:
       path: /health
       port: 8000
-    initialDelaySeconds: 15
+    initialDelaySeconds: 5
     periodSeconds: 5
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
 
-# ============================================
-# Recurring Task Service
-# ============================================
 recurringTaskService:
-  enabled: true
-  name: recurring-task-service
-  replicaCount: 2
+  enabled: false
+  name: todo-recurring-task-service
+  replicaCount: 1
   image:
-    repository: recurring-task-service
+    repository: todo-backend
     tag: latest
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 8001
-    targetPort: 8001
+    port: 8080
+    targetPort: 8080
   resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
 
-# ============================================
-# Notification Service
-# ============================================
 notificationService:
-  enabled: true
-  name: notification-service
-  replicaCount: 2
+  enabled: false
+  name: todo-notification-service
+  replicaCount: 1
   image:
-    repository: notification-service
+    repository: todo-backend
     tag: latest
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 8002
-    targetPort: 8002
+    port: 8081
+    targetPort: 8081
   resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
 
-# ============================================
-# Audit Service
-# ============================================
 auditService:
-  enabled: true
-  name: audit-service
-  replicaCount: 2
+  enabled: false
+  name: todo-audit-service
+  replicaCount: 1
   image:
-    repository: audit-service
+    repository: todo-backend
     tag: latest
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 8003
-    targetPort: 8003
+    port: 8082
+    targetPort: 8082
   resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
 
-# ============================================
-# WebSocket Sync Service
-# ============================================
 websocketSyncService:
-  enabled: true
-  name: websocket-sync-service
-  replicaCount: 2
+  enabled: false
+  name: todo-websocket-sync-service
+  replicaCount: 1
   image:
-    repository: websocket-sync-service
+    repository: todo-backend
     tag: latest
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 8004
-    targetPort: 8004
+    port: 8083
+    targetPort: 8083
   resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
-# ============================================
-# PostgreSQL Database
-# ============================================
-postgresql:
-  enabled: true
-  auth:
-    username: postgres
-    password: your-secure-password-change-in-production
-    database: todo_db
-  primary:
-    persistence:
-      enabled: true
-      size: 10Gi
-      storageClass: do-block-storage
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "250m"
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
-
-# Use managed PostgreSQL instead
-externalDatabase:
-  enabled: false
-  host: ""
-  port: 25060
-  username: doadmin
-  password: ""
-  database: defaultdb
-  sslMode: require
-
-# ============================================
-# Kafka
-# ============================================
-kafka:
-  enabled: true
-  replicaCount: 3
-  persistence:
-    enabled: true
-    size: 10Gi
-  resources:
-    requests:
-      memory: "512Mi"
-      cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
-
-# Use external Kafka instead
-externalKafka:
-  enabled: false
-  bootstrapServers: ""
-  sasl:
     enabled: false
-    mechanism: SCRAM-SHA-256
-    username: ""
-    password: ""
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
 
-# ============================================
-# Ingress Configuration
-# ============================================
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/websocket-services: websocket-sync-service
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-  hosts:
-    - host: todo.yourdomain.com
-      paths:
-        - path: /api
-          pathType: Prefix
-          backend:
-            service:
-              name: api-service
-              port: 8000
-        - path: /ws
-          pathType: Prefix
-          backend:
-            service:
-              name: websocket-sync-service
-              port: 8004
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: frontend-service
-              port: 80
-  tls:
-    - secretName: todo-app-tls
-      hosts:
-        - todo.yourdomain.com
-
-# ============================================
-# Secrets (use external secrets operator in production)
-# ============================================
-secrets:
-  # Database
-  databaseUrl: postgresql://postgres:your-secure-password@postgres.default.svc.cluster.local:5432/todo_db
-
-  # Authentication
-  jwtSecretKey: your-super-secret-jwt-key-minimum-32-characters
-  betterAuthSecret: your-better-auth-secret-key
-  authSecret: your-auth-secret
-
-  # OpenAI
-  openaiApiKey: sk-your-openai-api-key
-
-  # SMTP
-  smtpUsername: your-email@gmail.com
-  smtpPassword: your-app-password
-  smtpFromEmail: noreply@yourdomain.com
-
-# ============================================
-# Monitoring
-# ============================================
-monitoring:
-  enabled: true
-  prometheus:
-    enabled: true
-  grafana:
-    enabled: true
-    adminPassword: admin-change-in-production
-
-# ============================================
-# Service Mesh (Dapr)
-# ============================================
-dapr:
-  enabled: false
-  mtls:
-    enabled: false
-
-# ============================================
-# Network Policies
-# ============================================
 networkPolicies:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+externalDatabase:
   enabled: true
 
-# ============================================
-# Pod Security
-# ============================================
-podSecurityPolicy:
+kafka:
+  enabled: false
+
+externalKafka:
   enabled: true
 
-# ============================================
-# Service Account
-# ============================================
-serviceAccount:
-  create: true
-  name: todo-app-sa
+monitoring:
+  enabled: false
+  grafana:
+    enabled: false
+    adminPassword: "admin"
+  prometheus:
+    enabled: false
+
+ingress:
+  enabled: false
+  className: nginx
   annotations: {}
+  hosts: []
+  tls: []
+
+environment: production

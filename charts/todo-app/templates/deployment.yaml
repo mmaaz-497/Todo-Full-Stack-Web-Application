@@ -87,6 +87,16 @@ spec:
             secretKeyRef:
               name: backend-secrets
               key: KAFKA_BOOTSTRAP_SERVERS
+        - name: AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: AUTH_SECRET
+        - name: AUTH_ISSUER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: AUTH_ISSUER
         {{- if .livenessProbe }}
         livenessProbe:
           {{- toYaml .livenessProbe | nindent 10 }}

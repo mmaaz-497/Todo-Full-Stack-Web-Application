@@ -1,0 +1,98 @@
+name: Build and Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: backend
+            path: ./backend
+          - name: frontend
+            path: ./frontend
+          - name: recurring-task-service
+            path: ./services/recurring-task-service
+          - name: notification-service
+            path: ./services/notification-service
+          - name: audit-service
+            path: ./services/audit-service
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: ${{ matrix.service.path }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-to-k8s:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
+
+    - name: Update image tags
+      run: |
+        sed -i 's|ghcr.io/.*taskflow-backend:.*|ghcr.io/${{ github.repository_owner }}/taskflow-backend:${{ github.sha }}|' k8s/production/backend.yaml
+        sed -i 's|ghcr.io/.*taskflow-frontend:.*|ghcr.io/${{ github.repository_owner }}/taskflow-frontend:${{ github.sha }}|' k8s/production/frontend.yaml
+        sed -i 's|ghcr.io/.*recurring-task-service:.*|ghcr.io/${{ github.repository_owner }}/recurring-task-service:${{ github.sha }}|' k8s/production/consumers.yaml
+        sed -i 's|ghcr.io/.*notification-service:.*|ghcr.io/${{ github.repository_owner }}/notification-service:${{ github.sha }}|' k8s/production/consumers.yaml
+        sed -i 's|ghcr.io/.*audit-service:.*|ghcr.io/${{ github.repository_owner }}/audit-service:${{ github.sha }}|' k8s/production/consumers.yaml
+
+    - name: Deploy to Kubernetes
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        kubectl apply -f k8s/production/ -n taskflow
+        kubectl rollout status deployment/backend -n taskflow
+        kubectl rollout status deployment/frontend -n taskflow
+
+    - name: Verify deployment
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        kubectl get pods -n taskflow
+        kubectl get services -n taskflow

@@ -49,6 +49,11 @@ Thumbs.db
 logs
 *.log
 
+# Local databases (do not ship the dev SQLite file)
+*.db
+*.sqlite
+*.sqlite3
+
 # Temporary files
 *.tmp
 *.bak

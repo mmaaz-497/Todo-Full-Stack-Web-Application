@@ -84,6 +84,7 @@ build
 # Logs
 logs
 *.log
+*.stackdump
 
 # Testing
 coverage/
