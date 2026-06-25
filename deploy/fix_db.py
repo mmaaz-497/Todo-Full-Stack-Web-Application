@@ -5,6 +5,10 @@ Diagnose (and optionally fix) the TaskFlow `tasks` table on Neon.
 Reads DATABASE_URL from backend/.env. Connects directly to Neon.
 
   python deploy/fix_db.py              # READ-ONLY: show tables + tasks columns
+  python deploy/fix_db.py --probe      # READ-ONLY: read rows like the API does and
+                                       # flag NULLs in fields the response requires
+  python deploy/fix_db.py --normalize  # fill NULLs in required fields + uppercase
+                                       # priority on existing rows (fixes 500)
   python deploy/fix_db.py --alter      # NON-DESTRUCTIVE: add only the missing
                                        # columns (keeps existing rows)
   python deploy/fix_db.py --recreate   # DROP the tasks table (asks first), so the
@@ -32,7 +36,8 @@ ENV_FILE = REPO_ROOT / "backend" / ".env"
 EXPECTED = [
     "id", "user_id", "title", "description", "status", "created_at", "updated_at",
     "completed_at", "completed", "priority", "tags", "due_date", "recurrence_rule",
-    "parent_task_id", "reminder_time", "recurrence_pattern", "last_completed_at",
+    "parent_task_id", "reminder_time", "reminder_offset", "recurrence_pattern",
+    "last_completed_at",
 ]
 
 # Non-destructive DDL to add a column if it's missing (types match the model and
@@ -47,6 +52,7 @@ COLUMN_DDL = {
     "tags": "ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '[]'::jsonb",
     "due_date": "ADD COLUMN IF NOT EXISTS due_date TIMESTAMP",
     "reminder_time": "ADD COLUMN IF NOT EXISTS reminder_time TIMESTAMP",
+    "reminder_offset": "ADD COLUMN IF NOT EXISTS reminder_offset VARCHAR",
     "recurrence_pattern": "ADD COLUMN IF NOT EXISTS recurrence_pattern VARCHAR(20) NOT NULL DEFAULT 'none'",
     "last_completed_at": "ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMP",
     "description": "ADD COLUMN IF NOT EXISTS description VARCHAR",
@@ -68,7 +74,15 @@ def get_database_url() -> str:
 def main():
     recreate = "--recreate" in sys.argv
     alter = "--alter" in sys.argv
+    probe = "--probe" in sys.argv
+    normalize = "--normalize" in sys.argv
     url = get_database_url()
+
+    # Fields TaskResponse requires to be non-null (a NULL here causes a 500)
+    REQUIRED_NOTNULL = [
+        "id", "user_id", "title", "completed", "created_at", "updated_at",
+        "priority", "tags", "recurrence_pattern",
+    ]
 
     # psycopg wants 'postgresql://' (strip any '+driver')
     conninfo = url.replace("postgresql+psycopg://", "postgresql://").replace("postgresql+psycopg2://", "postgresql://")
@@ -102,6 +116,57 @@ def main():
             rows = cur.fetchone()[0]
             print(f"\nRows in tasks: {rows}")
             print("MISSING columns the API needs:", ", ".join(missing) or "(none — schema looks OK)")
+
+            if probe:
+                print("\n--probe: reading rows the way the API does...")
+                try:
+                    cur.execute(
+                        "select " + ", ".join(REQUIRED_NOTNULL)
+                        + ", status, recurrence_rule, parent_task_id from tasks"
+                    )
+                    fetched = cur.fetchall()
+                    names = [d.name for d in cur.description]
+                except Exception as e:
+                    print("  DB read FAILED:", repr(e))
+                    print("  -> the 500 is a database read error (shown above).")
+                    return
+                bad = False
+                for r in fetched:
+                    row = dict(zip(names, r))
+                    nulls = [k for k in REQUIRED_NOTNULL if row.get(k) is None]
+                    if nulls:
+                        bad = True
+                    flag = ("   <-- NULL in required: " + ", ".join(nulls)) if nulls else ""
+                    print(f"  id={row.get('id')} priority={row.get('priority')!r} "
+                          f"tags={row.get('tags')!r} recurrence_pattern={row.get('recurrence_pattern')!r} "
+                          f"completed={row.get('completed')!r} status={row.get('status')!r}{flag}")
+                if bad:
+                    print("\n>>> Found NULLs in fields the API response REQUIRES — that is the 500.")
+                    print("    Fix it (keeps data):  python deploy/fix_db.py --normalize")
+                else:
+                    print("\nNo NULLs in required fields, and the read worked.")
+                    print("So the 500 is NOT bad data — it's API-side. Send me the API Space")
+                    print("logs (the Python traceback shown when you load tasks).")
+                return
+
+            if normalize:
+                print("\n--normalize: filling NULLs in required fields + uppercasing priority...")
+                stmts = [
+                    "UPDATE tasks SET priority='MEDIUM' WHERE priority IS NULL",
+                    "UPDATE tasks SET priority=UPPER(priority) WHERE priority IS NOT NULL",
+                    "UPDATE tasks SET tags='[]'::jsonb WHERE tags IS NULL",
+                    "UPDATE tasks SET recurrence_pattern='none' WHERE recurrence_pattern IS NULL",
+                    "UPDATE tasks SET status='pending' WHERE status IS NULL",
+                    "UPDATE tasks SET completed=false WHERE completed IS NULL",
+                    "UPDATE tasks SET created_at=NOW() WHERE created_at IS NULL",
+                    "UPDATE tasks SET updated_at=NOW() WHERE updated_at IS NULL",
+                ]
+                for s in stmts:
+                    cur.execute(s)
+                    print(f"  {cur.rowcount:>3} rows  <-  {s}")
+                conn.commit()
+                print("\nDone. Reload your site — tasks should load now (no restart needed).")
+                return
 
             if alter:
                 if not missing:

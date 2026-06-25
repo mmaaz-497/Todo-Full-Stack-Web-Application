@@ -125,3 +125,6 @@ kubeconfig*
 
 # Helm
 .helmignore
+
+# Private deployment reference (URLs, Space names, instructions)
+DEPLOYMENT_INFO.md

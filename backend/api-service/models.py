@@ -79,7 +79,7 @@ class Task(SQLModel, table=True):
     priority: Optional[str] = Field(default=None)  # low, medium, high, urgent
     tags: List[str] = Field(
         default_factory=list,
-        sa_column=Column(ARRAY(Text), nullable=False, server_default='{}')  # Phase V: PostgreSQL TEXT[] array
+        sa_column=Column(JSONB, nullable=False, server_default='[]')  # Phase V: JSONB array (matches DB column + jsonb queries)
     )
     due_date: Optional[datetime] = Field(default=None)  # Phase V: timezone-aware deadline
     reminder_offset: Optional[str] = Field(default=None)  # Phase V: ISO 8601 duration (e.g., "1 hour", "1 day")
@@ -233,10 +233,14 @@ class TaskUpdate(SQLModel):
 
     @validator("priority")
     def priority_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate priority if provided."""
-        if v is not None and v not in [e.value for e in PriorityEnum]:
-            raise ValueError(f"Priority must be one of: {', '.join([e.value for e in PriorityEnum])}")
-        return v
+        """Validate priority if provided (case-insensitive; store UPPERCASE)."""
+        if v is None:
+            return v
+        normalized = v.strip().upper()
+        valid = {e.value.upper() for e in PriorityEnum}
+        if normalized not in valid:
+            raise ValueError(f"Priority must be one of: {', '.join(sorted(valid))}")
+        return normalized
 
     @validator("tags")
     def tags_valid(cls, v: Optional[List[str]]) -> Optional[List[str]]:
@@ -260,10 +264,14 @@ class TaskUpdate(SQLModel):
 
     @validator("recurrence_pattern")
     def recurrence_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate recurrence pattern if provided."""
-        if v is not None and v not in [e.value for e in RecurrenceEnum]:
-            raise ValueError(f"Recurrence pattern must be one of: {', '.join([e.value for e in RecurrenceEnum])}")
-        return v
+        """Validate recurrence pattern if provided (case-insensitive; store lowercase)."""
+        if v is None:
+            return v
+        normalized = v.strip().lower()
+        valid = {e.value for e in RecurrenceEnum}
+        if normalized not in valid:
+            raise ValueError(f"Recurrence pattern must be one of: {', '.join(sorted(valid))}")
+        return normalized
 
     @root_validator(skip_on_failure=True)
     def reminder_before_due(cls, values):

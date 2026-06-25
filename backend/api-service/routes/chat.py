@@ -13,7 +13,7 @@ from datetime import datetime
 from app.config import settings
 from app.database import get_session
 from app.models import Conversation, Message  # Import from app.models (models.py file)
-from app.auth import verify_token as get_current_user_id  # Use the correct BetterAuth verification
+from auth import get_current_user_id  # Better Auth session verification (same as task routes)
 from app.agent import create_agent, run_agent
 
 
